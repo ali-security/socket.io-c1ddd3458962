@@ -134,6 +134,50 @@ describe("socket.io-parser", () => {
     );
   });
 
+  it("throw an error upon an invalid attachment count", () => {
+    const isInvalidAttachmentCount = (str) =>
+      expect(() => new Decoder().add(str)).to.throwException(
+        /^Illegal attachments$/,
+      );
+
+    isInvalidAttachmentCount("5");
+    isInvalidAttachmentCount("51");
+    isInvalidAttachmentCount("5a-");
+    isInvalidAttachmentCount("51.23-");
+
+    // a packet labeled as binary must declare at least one attachment
+    isInvalidAttachmentCount("5-");
+    isInvalidAttachmentCount('5-["hello"]');
+    isInvalidAttachmentCount('50-["hello"]');
+    isInvalidAttachmentCount('50-/admin,["hello"]');
+    isInvalidAttachmentCount('50-1["hello"]');
+    isInvalidAttachmentCount('6-["hello"]');
+    isInvalidAttachmentCount('60-["hello"]');
+    isInvalidAttachmentCount('51.23-["hello"]');
+    isInvalidAttachmentCount('50-["hello",{"_placeholder":true,"num":0}]');
+  });
+
+  it("should not emit a packet when the binary header declares no attachment", () => {
+    const decoder = new Decoder();
+    let decodedCount = 0;
+
+    decoder.on("decoded", () => {
+      decodedCount++;
+    });
+
+    const decodePacketWithoutAttachment = () =>
+      decoder.add('50-["hello",{"_placeholder":true,"num":0}]');
+
+    expect(decodePacketWithoutAttachment).to.throwException(
+      /^Illegal attachments$/,
+    );
+    expect(decodedCount).to.eql(0);
+
+    // the decoder must not be left waiting for binary attachments
+    decoder.add('2["hello"]');
+    expect(decodedCount).to.eql(1);
+  });
+
   it("should resume decoding after calling destroy()", () => {
     return new Promise((resolve) => {
       const decoder = new Decoder();

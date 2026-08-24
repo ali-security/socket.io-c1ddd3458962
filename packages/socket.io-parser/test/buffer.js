@@ -64,4 +64,17 @@ describe("Buffer", () => {
       decoder.add('2["hello"]');
     }).to.throwException(/^got plaintext data when reconstructing a packet$/);
   });
+
+  it("throws an error when the header declares no attachment", () => {
+    const decoder = new Decoder();
+
+    expect(() => {
+      decoder.add('50-["hello",{"_placeholder":true,"num":0}]');
+    }).to.throwException(/^Illegal attachments$/);
+
+    // the packet was rejected, so no binary data is expected
+    expect(() => {
+      decoder.add(Buffer.from("world"));
+    }).to.throwException(/^got binary data when not reconstructing a packet$/);
+  });
 });
