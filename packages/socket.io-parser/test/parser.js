@@ -107,6 +107,74 @@ describe("socket.io-parser", () => {
     }
   });
 
+  it("throws an error when receiving too many attachments", () => {
+    const decoder = new Decoder({ maxAttachments: 2 });
+
+    expect(() => {
+      decoder.add(
+        '53-["hello",{"_placeholder":true,"num":0},{"_placeholder":true,"num":1},{"_placeholder":true,"num":2}]',
+      );
+    }).to.throwException(/^too many attachments$/);
+  });
+
+  it("throws an error when receiving too many attachments (default limit)", () => {
+    const decoder = new Decoder();
+    let decodedCount = 0;
+
+    decoder.on("decoded", () => {
+      decodedCount++;
+    });
+
+    expect(() => {
+      decoder.add('51000000-["hello",{"_placeholder":true,"num":0}]');
+    }).to.throwException(/^too many attachments$/);
+    expect(decodedCount).to.eql(0);
+
+    // the decoder must not be left waiting for binary attachments
+    decoder.add('2["hello"]');
+    expect(decodedCount).to.eql(1);
+  });
+
+  it("decodes with a custom reviver", () => {
+    const decoder = new Decoder((key, value) => {
+      if (key === "a") {
+        return value.toUpperCase();
+      } else {
+        return value;
+      }
+    });
+
+    return new Promise((resolve) => {
+      decoder.on("decoded", (packet) => {
+        expect(packet.data).to.eql(["b", { a: "VAL" }]);
+        resolve();
+      });
+
+      decoder.add('2["b",{"a":"val"}]');
+    });
+  });
+
+  it("decodes with a custom reviver (options object)", () => {
+    const decoder = new Decoder({
+      reviver: (key, value) => {
+        if (key === "a") {
+          return value.toUpperCase();
+        } else {
+          return value;
+        }
+      },
+    });
+
+    return new Promise((resolve) => {
+      decoder.on("decoded", (packet) => {
+        expect(packet.data).to.eql(["b", { a: "VAL" }]);
+        resolve();
+      });
+
+      decoder.add('2["b",{"a":"val"}]');
+    });
+  });
+
   it("throw an error upon parsing error", () => {
     const isInvalidPayload = (str) =>
       expect(() => new Decoder().add(str)).to.throwException(
