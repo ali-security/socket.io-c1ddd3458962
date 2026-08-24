@@ -3,14 +3,12 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      # expected format: <package>@<version> (example: socket.io@1.2.3)
-      - '**@*'
+  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write

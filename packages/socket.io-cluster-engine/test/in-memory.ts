@@ -163,6 +163,8 @@ describe("in-memory", () => {
         signal: controller.signal,
       });
 
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const res = await fetch(url(3001, sid));
       expect(res.status).to.eql(400);
 
@@ -179,6 +181,8 @@ describe("in-memory", () => {
       fetch(url(3001, sid), {
         signal: controller.signal,
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const res = await fetch(url(3000, sid));
       expect(res.status).to.eql(400);

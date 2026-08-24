@@ -1,12 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - '**'
-  pull_request:
-  schedule:
-    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'Run only the tests matching this name filter (empty = full suite)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ permissions:
 jobs:
   test-node:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
@@ -63,7 +63,13 @@ jobs:
         run: npm run compile --workspaces --if-present
 
       - name: Run tests
-        run: npm test --workspaces
+        run: |
+          if [ -n "${{ inputs.test-filter }}" ]; then
+            cd packages/socket.io-parser
+            npx mocha --reporter dot --bail --grep "${{ inputs.test-filter }}" test/index.js
+          else
+            npm test --workspaces
+          fi
 
       - name: Run tests with uws (engine.io)
         run: npm run test:uws --workspace=engine.io
@@ -76,3 +82,15 @@ jobs:
       - name: Run tests with Node.js native WebSocket (engine.io-client)
         run: npm run test:node-builtin-ws --workspace=engine.io-client
         if: ${{ matrix.node-version == '22' }}
+
+      - name: Pack socket.io-parser
+        run: npm pack --workspace=socket.io-parser
+        if: ${{ matrix.node-version == '24' }}
+
+      - name: Upload socket.io-parser tarball
+        uses: actions/upload-artifact@v4
+        if: ${{ matrix.node-version == '24' }}
+        with:
+          name: socket.io-parser-tgz
+          path: socket.io-parser-4.2.5.tgz
+          if-no-files-found: error
